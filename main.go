@@ -38,6 +38,7 @@ type TaskConfig struct {
 	Thread      int    `toml:"thread"`
 	SQL         string `toml:"sql"`
 	TargetTable string `toml:"targetTable"`
+	BatchSQL    string `toml:"batchSQL"`
 }
 
 // 分区信息结构
@@ -114,8 +115,8 @@ func parseTargetTable(target string) (TargetTable, error) {
 	}, nil
 }
 
-func getPartitions(db *sql.DB) ([]Partition, error) {
-	rows, err := db.Query("SELECT partition_name, partition_value FROM task.pv")
+func getPartitions(db *sql.DB, cfg TaskConfig) ([]Partition, error) {
+	rows, err := db.Query(cfg.BatchSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,7 @@ func processTask(db *sql.DB, cfg TaskConfig) error {
 		return fmt.Errorf("目标表解析失败: %v", err)
 	}
 
-	partitions, err := getPartitions(db)
+	partitions, err := getPartitions(db, cfg)
 	if err != nil {
 		return fmt.Errorf("获取分区信息失败: %v", err)
 	}

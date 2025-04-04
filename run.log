@@ -1,20 +1,4 @@
-创建临时表 CREATE TABLE `db1`.`t1_p1` (
-  `id` int DEFAULT NULL,
-  `费款所属期` varchar(100) DEFAULT NULL,
-  `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p1` (
-  `id` int DEFAULT NULL,
-  `费款所属期` varchar(100) DEFAULT NULL,
-  `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p4` (
-  `id` int DEFAULT NULL,
-  `费款所属期` varchar(100) DEFAULT NULL,
-  `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db1`.`t1_p4` (
-  `id` int DEFAULT NULL,
-  `费款所属期` varchar(100) DEFAULT NULL,
-  `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p3` (
+创建临时表 CREATE TABLE `db1`.`t1_p3` (
   `id` int DEFAULT NULL,
   `费款所属期` varchar(100) DEFAULT NULL,
   `col1` varchar(100) DEFAULT NULL
@@ -22,7 +6,15 @@
   `id` int DEFAULT NULL,
   `费款所属期` varchar(100) DEFAULT NULL,
   `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db1`.`t1_p3` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p4` (
+  `id` int DEFAULT NULL,
+  `费款所属期` varchar(100) DEFAULT NULL,
+  `col1` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p1` (
+  `id` int DEFAULT NULL,
+  `费款所属期` varchar(100) DEFAULT NULL,
+  `col1` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db2`.`t2_p3` (
   `id` int DEFAULT NULL,
   `费款所属期` varchar(100) DEFAULT NULL,
   `col1` varchar(100) DEFAULT NULL
@@ -30,7 +22,15 @@
   `id` int DEFAULT NULL,
   `费款所属期` varchar(100) DEFAULT NULL,
   `col1` varchar(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin2025/04/04 16:01:25 成功创建4个临时表
-2025/04/04 16:01:25 成功创建4个临时表
- 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p4 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p1 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p1 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p3 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p3 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p2 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p2 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p42025/04/04 16:01:27 开始清理4个临时表
-2025/04/04 16:01:27 开始清理4个临时表
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db1`.`t1_p4` (
+  `id` int DEFAULT NULL,
+  `费款所属期` varchar(100) DEFAULT NULL,
+  `col1` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin创建临时表 CREATE TABLE `db1`.`t1_p1` (
+  `id` int DEFAULT NULL,
+  `费款所属期` varchar(100) DEFAULT NULL,
+  `col1` varchar(100) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin2025/04/04 16:21:23 成功创建4个临时表
+2025/04/04 16:21:23 成功创建4个临时表
+ 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p4 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p3 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p2 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p1 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p3 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p2 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p1 交换分区 ALTER TABLE `db2`.`t2` TRUNCATE PARTITION p42025/04/04 16:21:25 开始清理4个临时表
+2025/04/04 16:21:25 开始清理4个临时表
