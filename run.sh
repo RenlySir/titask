@@ -1,0 +1,1 @@
+./task1 -config ctask.toml 2>&1 | tee run.log

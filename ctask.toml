@@ -1,0 +1,22 @@
+[db]
+host = "113.44.138.199"
+port = 4000
+user = "root"
+passwd = ""
+dbname = "test"
+maxOpenConns=25
+maxIdleConns=25
+connMaxLifetime=60000
+params=""
+
+[task.task1]
+thread = 6
+sql = "IMPORT INTO db1.t1 FROM SELECT * FROM t WHERE 费款所属期=?"
+targetTable="db1.t1"
+
+[task.task2]
+thread = 3
+sql = "IMPORT INTO db2.t2 FROM SELECT * FROM t WHERE 费款所属期=?"
+targetTable="db2.t2"
+
+
