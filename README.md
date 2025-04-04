@@ -9,20 +9,32 @@ manual
 3、配置文件说明
 
 [db]
+
 host = "113.44.138.199" 
+
 port = 4000
+
 user = "root"
+
 passwd = ""
+
 dbname = "test" # 建议填写查询的库名
+
 maxOpenConns=25
+
 maxIdleConns=25
+
 connMaxLifetime=60000
+
 params=""
 
 [task.task1]
 thread = 6
+
 sql = "IMPORT INTO db1.t1 FROM SELECT * FROM t WHERE 费款所属期=?" # 使用import into 改造后的SQL模板
+
 targetTable="db1.t1" # 需要写入的库表名称，创建临时表时使用
+
 batchSQL="select * from task.pv" # 通过该sql查询partiton name、partition value，为上面的sql赋值以及中途创建临时表使用；
 
 4、运行
