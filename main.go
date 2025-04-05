@@ -8,6 +8,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,10 +37,11 @@ type DBConfig struct {
 	ConnMaxLifetime time.Duration `toml:"connMaxLifetime"`
 }
 type TaskConfig struct {
-	Thread      int    `toml:"thread"`
-	SQL         string `toml:"sql"`
-	TargetTable string `toml:"targetTable"`
-	BatchSQL    string `toml:"batchSQL"`
+	Thread         int    `toml:"thread"`
+	SQL            string `toml:"sql"`
+	TargetTable    string `toml:"targetTable"`
+	BatchSQL       string `toml:"batchSQL"`
+	WaitForTiflash int    `toml:"waitForTiflash"`
 }
 
 // 分区信息结构
@@ -80,17 +83,114 @@ func main() {
 	db.SetConnMaxLifetime(config.DB.ConnMaxLifetime)
 
 	// 处理所有任务
-	var wg sync.WaitGroup
-	for taskName, taskConfig := range config.Tasks {
-		wg.Add(1)
-		go func(name string, cfg TaskConfig) {
-			defer wg.Done()
-			if err := processTask(db, cfg); err != nil {
-				log.Printf("任务%s执行失败: %v", name, err)
-			}
-		}(taskName, taskConfig)
+	//var wg sync.WaitGroup
+	//for taskName, taskConfig := range config.Tasks {
+	//	wg.Add(1)
+	//	go func(name string, cfg TaskConfig) {
+	//		defer wg.Done()
+	//		if err := processTask(db, cfg); err != nil {
+	//			log.Printf("任务%s执行失败: %v", name, err)
+	//		}
+	//	}(taskName, taskConfig)
+	//}
+	//wg.Wait()
+
+	// 获取排序后的任务列表
+	sortedTasks, err := sortTasks(config.Tasks)
+	if err != nil {
+		log.Fatal("任务排序失败:", err)
 	}
-	wg.Wait()
+
+	for _, taskName := range sortedTasks {
+		taskCfg := config.Tasks[taskName]
+		log.Printf("======== 开始执行任务 %s ========", taskName)
+		// 执行当前任务
+		if err := processTask(db, taskCfg); err != nil {
+			log.Fatalf("任务 %s 执行失败: %v", taskName, err)
+		}
+		if taskCfg.WaitForTiflash == 1 {
+			target, err := parseTargetTable(taskCfg.TargetTable)
+			if err != nil {
+				log.Fatalf("目标表解析失败: %v", err)
+			}
+			log.Printf("等待 %s.%s 的TiFlash副本就绪...", target.DBName, target.TableName)
+			if err := waitForTiflashReady(db, target.DBName, target.TableName); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+}
+
+func waitForTiflashReady(db *sql.DB, dbName string, tableName string) error {
+	const (
+		maxRetry = 6000             // 最大重试次数
+		interval = 20 * time.Second // 检查间隔
+	)
+	fmt.Printf("表%s.%s开启tiflash副本", dbName, tableName)
+	_, err := db.Exec(fmt.Sprintf("alter table %s.%s set tiflash replica 2", dbName, tableName))
+	if err != nil {
+		fmt.Printf("开启列存副本失败： %s \n", err)
+		return err
+	}
+
+	query := `SELECT available FROM information_schema.tiflash_replica 
+             WHERE table_schema = ? AND table_name = ?`
+
+	for i := 0; i < maxRetry; i++ {
+		var available int
+		err := db.QueryRow(query, dbName, tableName).Scan(&available)
+		switch {
+		case err == sql.ErrNoRows:
+			return fmt.Errorf("找不到TiFlash副本信息")
+		case err != nil:
+			return fmt.Errorf("查询失败: %v", err)
+		case available == 1:
+			log.Printf("TiFlash副本已就绪（第%d次检查）", i+1)
+			return nil
+		default:
+			log.Printf("第%d次检查，当前状态: %d（等待中...）", i+1, available)
+			time.Sleep(interval)
+		}
+	}
+	return fmt.Errorf("等待TiFlash副本超时（最大等待时间：%v）", maxRetry*interval)
+}
+
+func sortTasks(tasks map[string]TaskConfig) ([]string, error) {
+	type taskInfo struct {
+		name  string
+		index int
+	}
+
+	// 提取任务序号
+	var taskList []taskInfo
+	for name := range tasks {
+		// 使用正则提取数字部分
+		re := regexp.MustCompile(`task(\d+)`)
+		matches := re.FindStringSubmatch(name)
+		if len(matches) < 2 {
+			return nil, fmt.Errorf("无效的任务名称格式: %s", name)
+		}
+
+		index, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("任务序号解析失败: %s", name)
+		}
+
+		taskList = append(taskList, taskInfo{name: name, index: index})
+	}
+
+	// 按序号排序
+	sort.Slice(taskList, func(i, j int) bool {
+		return taskList[i].index < taskList[j].index
+	})
+
+	// 生成排序后的名称列表
+	var sortedNames []string
+	for _, t := range taskList {
+		sortedNames = append(sortedNames, t.name)
+	}
+	return sortedNames, nil
 }
 
 func buildDSN(dbCfg DBConfig) string {
@@ -186,11 +286,12 @@ func processPartitionData(db *sql.DB, cfg TaskConfig, target TargetTable, p Part
 	tempTable := fmt.Sprintf("%s_%s", target.TableName, p.Name)
 	fullTempTable := fmt.Sprintf("`%s`.`%s`", target.DBName, tempTable)
 
+	//fmt.Printf("执行数据插入------")
 	// 执行数据插入
 	if err := executeInsert(db, cfg.SQL, fullTempTable, p.Value); err != nil {
 		return fmt.Errorf("数据插入失败: %v", err)
 	}
-
+	//fmt.Printf("执行分区交换------")
 	// 执行分区交换
 	if err := exchangePartition(db, target, tempTable, p.Name); err != nil {
 		return fmt.Errorf("分区交换失败: %v", err)
@@ -201,7 +302,7 @@ func processPartitionData(db *sql.DB, cfg TaskConfig, target TargetTable, p Part
 
 func dropTempTable(db *sql.DB, dbName, table string) {
 	_, _ = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS `%s`.`%s`", dbName, table))
-	//fmt.Printf("删除表语句: DROP TABLE IF EXISTS `%s`.`%s`", dbName, table)
+	//fmt.Printf("删除表语句: DROP TABLE IF EXISTS %s.%s", dbName, table)
 }
 
 // 处理单个任务
@@ -218,19 +319,21 @@ func processTask(db *sql.DB, cfg TaskConfig) error {
 
 	// 预创建所有临时表
 	tempTables, err := createAllTempTables(db, target, partitions)
+
 	if err != nil {
 		return err
 	}
 	log.Printf("成功创建%d个临时表", len(tempTables))
-	defer func() {
-		log.Printf("开始清理%d个临时表", len(tempTables))
-		dropAllTempTables(db, target.DBName, tempTables)
-	}()
 
 	// 处理数据操作
 	if err := processDataOperations(db, cfg, target, partitions); err != nil {
-		return fmt.Errorf("数据操作失败: %v", err)
+		return fmt.Errorf("数据操作失败: %v /n", err)
 	}
+
+	defer func() {
+		log.Printf("开始清理%d个临时表 /n", len(tempTables))
+		dropAllTempTables(db, target.DBName, tempTables)
+	}()
 
 	return nil
 }
@@ -249,7 +352,7 @@ func createAllTempTables(db *sql.DB, target TargetTable, partitions []Partition)
 			tempTable := fmt.Sprintf("%s_%s", target.TableName, p.Name)
 
 			if err := createTempTable(db, target, tempTable); err != nil {
-				errCh <- fmt.Errorf("分区%s创建失败: %v", p.Name, err)
+				errCh <- fmt.Errorf("临时分区表%s创建失败: %v", p.Name, err)
 				return
 			}
 
@@ -263,6 +366,7 @@ func createAllTempTables(db *sql.DB, target TargetTable, partitions []Partition)
 	close(errCh)
 
 	if len(errCh) > 0 {
+
 		dropAllTempTables(db, target.DBName, tempTables)
 		var errs []error
 		for err := range errCh {
@@ -289,8 +393,9 @@ func createTempTable(db *sql.DB, target TargetTable, tempTable string) error {
 	re := regexp.MustCompile(fmt.Sprintf("`%s`", regexp.QuoteMeta(target.TableName)))
 	createSQL = re.ReplaceAllString(createSQL,
 		fmt.Sprintf("`%s`.`%s`", target.DBName, tempTable))
-	fmt.Printf("创建临时表 %s", createSQL)
-
+	//fmt.Printf("创建临时表 %s", createSQL)
+	createSQL = regexp.MustCompile(`(?i)^CREATE\s+(TEMPORARY\s+)?TABLE`).
+		ReplaceAllString(createSQL, "CREATE ${1}TABLE IF NOT EXISTS")
 	// 执行前验证分区定义已移除
 	if strings.Contains(strings.ToUpper(createSQL), "PARTITION BY") {
 		return fmt.Errorf("分区定义移除失败，生成的建表语句仍包含分区信息")
@@ -354,8 +459,10 @@ func exchangePartition(db *sql.DB, target TargetTable, tempTable, partition stri
 			mainTable, partition)); err != nil {
 		return err
 	}
-	fmt.Printf(" 交换分区 ALTER TABLE %s TRUNCATE PARTITION %s", mainTable, partition)
+	fmt.Printf(" 交换分区 ALTER TABLE %s TRUNCATE PARTITION %s \n ", mainTable, partition)
 
+	//fmt.Printf(" 交换分区失败===== SQL:    ALTER TABLE %s EXCHANGE PARTITION %s WITH TABLE %s",
+	//	mainTable, partition, fullTempTable)
 	if _, err := tx.Exec(
 		fmt.Sprintf("ALTER TABLE %s EXCHANGE PARTITION %s WITH TABLE %s",
 			mainTable, partition, fullTempTable)); err != nil {

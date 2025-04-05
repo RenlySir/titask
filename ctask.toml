@@ -10,14 +10,15 @@ connMaxLifetime=60000
 params=""
 
 [task.task1]
-thread = 6
+thread = 2
 sql = "IMPORT INTO db1.t1 FROM SELECT * FROM t WHERE 费款所属期=?"
 targetTable="db1.t1"
-batchSQL="select * from task.pv"
+batchSQL="select partition_name,partition_value from task.pv"
+waitForTiflash=1
 
 [task.task2]
 thread = 3
 sql = "IMPORT INTO db2.t2 FROM SELECT * FROM t WHERE 费款所属期=?"
 targetTable="db2.t2"
-batchSQL="select * from task.pv"
-
+batchSQL="select partition_name,partition_value from task.pv"
+waitForTiflash=1
