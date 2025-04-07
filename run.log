@@ -1,10 +1,1 @@
-2025/04/05 18:21:20 ======== 开始执行任务 task1 ========
-2025/04/05 18:21:21 成功创建4个临时表
- 交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p1 
-  交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p2 
-  交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p3 
-  交换分区 ALTER TABLE `db1`.`t1` TRUNCATE PARTITION p4 
- 2025/04/05 18:21:23 开始清理4个临时表 /n
-2025/04/05 18:21:24 等待 db1.t1 的TiFlash副本就绪...
-表db1.t1开启tiflash副本2025/04/05 18:21:24 第1次检查，当前状态: 0（等待中...）
-2025/04/05 18:21:44 第2次检查，当前状态: 0（等待中...）
+2025/04/07 11:16:45 ======== 开始执行任务 task1 ========

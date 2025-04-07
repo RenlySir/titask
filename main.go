@@ -108,53 +108,53 @@ func main() {
 		if err := processTask(db, taskCfg); err != nil {
 			log.Fatalf("任务 %s 执行失败: %v", taskName, err)
 		}
-		if taskCfg.WaitForTiflash == 1 {
-			target, err := parseTargetTable(taskCfg.TargetTable)
-			if err != nil {
-				log.Fatalf("目标表解析失败: %v", err)
-			}
-			log.Printf("等待 %s.%s 的TiFlash副本就绪...", target.DBName, target.TableName)
-			if err := waitForTiflashReady(db, target.DBName, target.TableName); err != nil {
-				log.Fatal(err)
-			}
-		}
+		//if taskCfg.WaitForTiflash == 1 {
+		//	target, err := parseTargetTable(taskCfg.TargetTable)
+		//	if err != nil {
+		//		log.Fatalf("目标表解析失败: %v", err)
+		//	}
+		//	log.Printf("等待 %s.%s 的TiFlash副本就绪...", target.DBName, target.TableName)
+		//	if err := waitForTiflashReady(db, target.DBName, target.TableName); err != nil {
+		//		log.Fatal(err)
+		//	}
+		//}
 	}
 
 }
 
-func waitForTiflashReady(db *sql.DB, dbName string, tableName string) error {
-	const (
-		maxRetry = 6000             // 最大重试次数
-		interval = 20 * time.Second // 检查间隔
-	)
-	fmt.Printf("表%s.%s开启tiflash副本", dbName, tableName)
-	_, err := db.Exec(fmt.Sprintf("alter table %s.%s set tiflash replica 2", dbName, tableName))
-	if err != nil {
-		fmt.Printf("开启列存副本失败： %s \n", err)
-		return err
-	}
-
-	query := `SELECT available FROM information_schema.tiflash_replica 
-             WHERE table_schema = ? AND table_name = ?`
-
-	for i := 0; i < maxRetry; i++ {
-		var available int
-		err := db.QueryRow(query, dbName, tableName).Scan(&available)
-		switch {
-		case err == sql.ErrNoRows:
-			return fmt.Errorf("找不到TiFlash副本信息")
-		case err != nil:
-			return fmt.Errorf("查询失败: %v", err)
-		case available == 1:
-			log.Printf("TiFlash副本已就绪（第%d次检查）", i+1)
-			return nil
-		default:
-			log.Printf("第%d次检查，当前状态: %d（等待中...）", i+1, available)
-			time.Sleep(interval)
-		}
-	}
-	return fmt.Errorf("等待TiFlash副本超时（最大等待时间：%v）", maxRetry*interval)
-}
+//func waitForTiflashReady(db *sql.DB, dbName string, tableName string) error {
+//	const (
+//		maxRetry = 6000             // 最大重试次数
+//		interval = 20 * time.Second // 检查间隔
+//	)
+//	fmt.Printf("表%s.%s开启tiflash副本", dbName, tableName)
+//	_, err := db.Exec(fmt.Sprintf("alter table %s.%s set tiflash replica 2", dbName, tableName))
+//	if err != nil {
+//		fmt.Printf("开启列存副本失败： %s \n", err)
+//		return err
+//	}
+//
+//	query := `SELECT available FROM information_schema.tiflash_replica
+//             WHERE table_schema = ? AND table_name = ?`
+//
+//	for i := 0; i < maxRetry; i++ {
+//		var available int
+//		err := db.QueryRow(query, dbName, tableName).Scan(&available)
+//		switch {
+//		case err == sql.ErrNoRows:
+//			return fmt.Errorf("找不到TiFlash副本信息")
+//		case err != nil:
+//			return fmt.Errorf("查询失败: %v", err)
+//		case available == 1:
+//			log.Printf("TiFlash副本已就绪（第%d次检查）", i+1)
+//			return nil
+//		default:
+//			log.Printf("第%d次检查，当前状态: %d（等待中...）", i+1, available)
+//			time.Sleep(interval)
+//		}
+//	}
+//	return fmt.Errorf("等待TiFlash副本超时（最大等待时间：%v）", maxRetry*interval)
+//}
 
 func sortTasks(tasks map[string]TaskConfig) ([]string, error) {
 	type taskInfo struct {
